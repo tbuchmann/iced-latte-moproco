@@ -1,0 +1,713 @@
+@startuml
+class String <<PrimitiveType>>
+class Long <<PrimitiveType>>
+class Integer <<PrimitiveType>>
+class Boolean <<PrimitiveType>>
+class Decimal <<PrimitiveType>>
+class Date <<PrimitiveType>>
+class DateTime <<PrimitiveType>>
+class ProductSnapshot <<DataType>> {                
+            ~  name : String 
+~  description : String 
+~  price : Decimal 
+~  quantity : Integer 
+~  active : Boolean 
+~  averageRating : Decimal 
+~  reviewsCount : Integer 
+~  brandName : String 
+~  sellerName : String 
+~  weight : Integer             
+          }
+class CartSnapshot <<DataType>> {                
+            ~  userId : Long 
+~  itemsQuantity : Integer 
+~  itemsTotalPrice : Decimal 
+~  productsQuantity : Integer 
+~  items : CartItemSnapshot [0..*]            
+          }
+class CartItemSnapshot <<DataType>> {                
+            ~  productId : Long 
+~  productQuantity : Integer             
+          }
+class AddCartItemRequest <<DataType>> {                
+            ~  productId : Long 
+~  productQuantity : Integer             
+          }
+class CheckoutOrderRequest <<DataType>> {                
+            ~  recipientName : String 
+~  recipientSurname : String 
+~  recipientPhone : String 
+~  address : OrderAddressRequest             
+          }
+class OrderAddressRequest <<DataType>> {                
+            ~  country : String 
+~  city : String 
+~  line : String 
+~  postcode : String             
+          }
+class OrderSnapshot <<DataType>> {                
+            ~  userId : Long 
+~  status : OrderStatus 
+~  recipientName : String 
+~  recipientSurname : String 
+~  recipientPhone : String 
+~  itemsQuantity : Integer 
+~  itemsTotalPrice : Decimal             
+          }
+class OrderItemSnapshot <<DataType>> {                
+            ~  productId : Long 
+~  productName : String 
+~  productPrice : Decimal 
+~  productsQuantity : Integer             
+          }
+class OrderStatusHistorySnapshot <<DataType>> {                
+            ~  oldStatus : OrderStatus 
+~  newStatus : OrderStatus 
+~  changedBy : String 
+~  reason : String 
+~  changedAt : DateTime             
+          }
+class UserLookupSnapshot <<DataType>> {                
+            ~  firstName : String 
+~  lastName : String 
+~  email : String             
+          }
+class CurrentUserSnapshot <<DataType>> {                
+            ~  email : String 
+~  displayName : String             
+          }
+class FileMetadataDto <<DataType>> {                
+            ~  relatedObjectId : String 
+~  bucketName : String 
+~  fileName : String             
+          }
+class StripeSessionResult <<DataType>> {                
+            ~  sessionId : Long 
+~  checkoutUrl : String             
+          }
+class AuthResponse <<DataType>> {                
+            ~  accessToken : String 
+~  refreshToken : String 
+~  userId : Long             
+          }
+class AuthSessionSnapshot <<DataType>> {                
+            ~  userAgent : String 
+~  ipAddress : String 
+~  createdAt : DateTime 
+~  lastUsedAt : DateTime 
+~  expiresAt : DateTime             
+          }
+class RegisterRequest <<DataType>> {                
+            ~  email : String 
+~  password : String 
+~  firstName : String 
+~  lastName : String             
+          }
+class EditUserProfileRequest <<DataType>> {                
+            ~  firstName : String 
+~  lastName : String 
+~  birthDate : Date 
+~  phoneNumber : String             
+          }
+class ChangePasswordRequest <<DataType>> {                
+            ~  currentPassword : String 
+~  newPassword : String             
+          }
+class DeliveryAddressRequest <<DataType>> {                
+            ~  label : String 
+~  line : String 
+~  city : String 
+~  country : String 
+~  postcode : String 
+~  isDefault : Boolean             
+          }
+class DeliveryAddressSnapshot <<DataType>> {                
+            ~  label : String 
+~  line : String 
+~  city : String 
+~  country : String 
+~  postcode : String 
+~  isDefault : Boolean             
+          }
+class ProductReviewSnapshot <<DataType>> {                
+            ~  userId : Long 
+~  productId : Long 
+~  text : String 
+~  productRating : Integer 
+~  likesCount : Integer 
+~  dislikesCount : Integer 
+~  createdAt : DateTime             
+          }
+class RatingSummarySnapshot <<DataType>> {                
+            ~  averageRating : Decimal 
+~  reviewsCount : Integer             
+          }
+class SupportChatStatusSnapshot <<DataType>> {                
+            ~  available : Boolean 
+~  queuePosition : Integer             
+          }
+class SupportConversationSnapshot <<DataType>> {                
+            ~  userId : Long 
+~  createdAt : DateTime 
+~  lastMessageAt : DateTime             
+          }
+class SupportMessageSnapshot <<DataType>> {                
+            ~  conversationId : Long 
+~  senderType : SupportMessageSenderType 
+~  body : String 
+~  deliveryStatus : SupportMessageDeliveryStatus 
+~  createdAt : DateTime             
+          }
+class CheckoutStatusSnapshot <<DataType>> {                
+            ~  status : PaymentStatus 
+~  providerSessionId : String             
+          }
+class LoginRequest <<DataType>> {                
+            ~  email : String 
+~  password : String             
+          }
+class ResetPasswordRequest <<DataType>> {                
+            ~  resetToken : String 
+~  newPassword : String             
+          }
+class RevokeSessionRequest <<DataType>> {                
+            ~  sessionId : Long             
+          }
+class OAuthCallbackRequest <<DataType>> {                
+            ~  code : String 
+~  state : String             
+          }
+class UpdateCartItemRequest <<DataType>> {                
+            ~  itemId : Long 
+~  quantity : Integer             
+          }
+class AddProductReviewRequest <<DataType>> {                
+            ~  userId : Long 
+~  text : String 
+~  rating : Integer             
+          }
+class AddProductReviewLikeRequest <<DataType>> {                
+            ~  userId : Long 
+~  isLike : Boolean             
+          }
+class GetProductReviewRequest <<DataType>> {                
+            ~  userId : Long             
+          }
+class DeleteProductReviewRequest <<DataType>> {                
+            ~  productReviewId : Long             
+          }
+abstract class AuditableEntity {                
+          ~  createdAt : DateTime 
+~  updatedAt : DateTime 
+~  createdBy : String 
+~  updatedBy : String 
+          
+        }
+class UserEntity {                
+          ~  firstName : String 
+~  lastName : String 
+~  birthDate : Date 
+~  phoneNumber : String 
+~  email : String 
+~  password : String 
+~  stripeCustomerToken : String 
+~  accountNonExpired : Boolean 
+~  accountNonLocked : Boolean 
+~  credentialsNonExpired : Boolean 
+~  enabled : Boolean 
+~  oauthUser : Boolean 
+          
+        }
+class Address {                
+          ~  country : String 
+~  city : String 
+~  line : String 
+~  postcode : String 
+          
+        }
+class UserGrantedAuthority {                
+          ~  authority : Authority 
+          
+        }
+class DeliveryAddressEntity {                
+          ~  label : String 
+~  line : String 
+~  city : String 
+~  country : String 
+~  postcode : String 
+~  isDefault : Boolean 
+          
+        }
+class UserAvatarUpload {                
+          ~  userId : Long 
+~  status : UserAvatarUploadStatus 
+~  originalBucket : String 
+~  originalKey : String 
+~  processedBucket : String 
+~  processedKey : String 
+~  contentType : String 
+~  originalSizeBytes : Long 
+~  processedSizeBytes : Long 
+~  imageWidth : Integer 
+~  imageHeight : Integer 
+~  sha256 : String 
+~  clientIdempotencyKey : String 
+~  active : Boolean 
+~  createdAt : DateTime 
+~  expiresAt : DateTime 
+          
+        }
+class ProductInfo {                
+          ~  version : Long 
+~  name : String 
+~  description : String 
+~  price : Decimal 
+~  quantity : Integer 
+~  active : Boolean 
+~  averageRating : Decimal 
+~  reviewsCount : Integer 
+~  brandName : String 
+~  sellerName : String 
+~  originCountry : String 
+~  weight : Integer 
+~  length : Integer 
+~  width : Integer 
+~  height : Integer 
+~  soldProductsCount : Integer 
+~  discount : Integer 
+~  dateAdded : DateTime 
+~  popularityScore : Integer 
+~  aiSummary : String 
+          
+        }
+class ProductImage {                
+          ~  productId : Long 
+~  url : String 
+~  position : Integer 
+          
+        }
+class ShoppingCart {                
+          ~  userId : Long 
+~  createdAt : DateTime 
+~  closedAt : DateTime 
+~  itemsQuantity : Integer 
+~  itemsTotalPrice : Decimal 
+~  productsQuantity : Integer 
+          
+        }
+class ShoppingCartItem {                
+          ~  version : Integer 
+~  productId : Long 
+~  productQuantity : Integer 
+          
+        }
+class Order {                
+          ~  userId : Long 
+~  sessionId : Long 
+~  status : OrderStatus 
+~  version : Integer 
+~  idempotencyKey : String 
+~  recipientName : String 
+~  recipientSurname : String 
+~  recipientPhone : String 
+~  itemsQuantity : Integer 
+~  itemsTotalPrice : Decimal 
+~  cancellationDeadline : DateTime 
+~  stripePaymentIntentId : String 
+~  refundReason : String 
+~  refundedAt : DateTime 
+          
+        }
+class OrderItem {                
+          ~  orderId : Long 
+~  productId : Long 
+~  productPrice : Decimal 
+~  productName : String 
+~  productsQuantity : Integer 
+          
+        }
+class OrderAddress {                
+          ~  country : String 
+~  city : String 
+~  line : String 
+~  postcode : String 
+          
+        }
+class OrderStatusHistory {                
+          ~  orderId : Long 
+~  oldStatus : OrderStatus 
+~  newStatus : OrderStatus 
+~  changedBy : String 
+~  reason : String 
+~  changedAt : DateTime 
+          
+        }
+class Payment {                
+          ~  orderId : Long 
+~  userId : Long 
+~  provider : PaymentProvider 
+~  providerSessionId : String 
+~  providerPaymentIntentId : String 
+~  status : PaymentStatus 
+~  amountMinor : Long 
+~  currency : String 
+~  rawEventId : String 
+~  latestEventType : String 
+~  checkoutIdempotencyKey : String 
+          
+        }
+class StripeWebhookEvent {                
+          ~  stripeEventId : String 
+~  eventType : String 
+~  status : WebhookEventStatus 
+~  receivedAt : DateTime 
+~  processedAt : DateTime 
+~  failureReason : String 
+          
+        }
+class ProductReview {                
+          ~  userId : Long 
+~  productId : Long 
+~  createdAt : DateTime 
+~  text : String 
+~  productRating : Integer 
+~  likesCount : Integer 
+~  dislikesCount : Integer 
+          
+        }
+class ProductReviewLike {                
+          ~  productReviewId : Long 
+~  productId : Long 
+~  userId : Long 
+~  isLike : Boolean 
+          
+        }
+class FavoriteListEntity {                
+          ~  userId : Long 
+~  updatedAt : DateTime 
+          
+        }
+class FavoriteItemEntity {                
+          ~  version : Integer 
+~  productId : Long 
+          
+        }
+class AuthSessionEntity {                
+          ~  userId : Long 
+~  refreshTokenHash : String 
+~  previousTokenHash : String 
+~  createdAt : DateTime 
+~  expiresAt : DateTime 
+~  lastUsedAt : DateTime 
+~  revokedAt : DateTime 
+~  userAgent : String 
+~  ipAddress : String 
+~  compromised : Boolean 
+          
+        }
+class LoginAttemptEntity {                
+          ~  userEmail : String 
+~  attempts : Integer 
+~  expirationDatetime : DateTime 
+~  isUserLocked : Boolean 
+~  lastModified : DateTime 
+          
+        }
+class EmailTokenEntity {                
+          ~  userId : Long 
+~  token : String 
+~  purpose : TokenPurpose 
+~  expiresAt : DateTime 
+~  usedAt : DateTime 
+          
+        }
+class OAuthIdentityEntity {                
+          ~  userId : Long 
+~  provider : OAuthProvider 
+~  providerSubject : String 
+~  email : String 
+          
+        }
+class SupportConversationEntity {                
+          ~  userId : Long 
+~  createdAt : DateTime 
+~  updatedAt : DateTime 
+~  lastMessageAt : DateTime 
+~  telegramMessageThreadId : Long 
+~  telegramFallbackMessageId : Long 
+          
+        }
+class SupportMessageEntity {                
+          ~  conversationId : Long 
+~  senderType : SupportMessageSenderType 
+~  senderUserId : Long 
+~  clientMessageId : String 
+~  body : String 
+~  normalizedBody : String 
+~  deliveryStatus : SupportMessageDeliveryStatus 
+~  operatorInspectionRequired : Boolean 
+~  visibleToCustomer : Boolean 
+~  telegramUpdateId : Long 
+~  telegramMessageId : Long 
+~  createdAt : DateTime 
+          
+        }
+class FileMetadata {                
+          ~  fileId : String 
+~  relatedObjectId : String 
+~  bucketName : String 
+~  fileName : String 
+~  createdAt : DateTime 
+~  updatedAt : DateTime 
+          
+        }
+enum Authority {
+          ADMIN
+USER
+        }
+enum UserAvatarUploadStatus {
+          PENDING_UPLOAD
+UPLOADED
+PROCESSING
+READY
+FAILED
+EXPIRED
+SUPERSEDED
+        }
+enum PaymentStatus {
+          CREATED
+STRIPE_SESSION_CREATED
+AWAITING_ASYNC_CONFIRMATION
+PAID
+FAILED
+EXPIRED
+REFUNDED
+RECONCILIATION_FAILED
+CANCELED
+PROCESSING
+REQUIRES_ACTION
+        }
+enum PaymentProvider {
+          STRIPE
+        }
+enum WebhookEventStatus {
+          PROCESSING
+PROCESSED
+RETRYABLE_FAILED
+        }
+enum OrderStatus {
+          CREATED
+PENDING_PAYMENT
+PAID
+PROCESSING
+SHIPPED
+DELIVERED
+CANCELLED
+REFUND_REQUESTED
+REFUNDED
+PAYMENT_FAILED
+PAYMENT_EXPIRED
+        }
+enum SupportMessageSenderType {
+          CUSTOMER
+OWNER
+SYSTEM
+        }
+enum SupportMessageDeliveryStatus {
+          PENDING
+SENT
+FAILED
+        }
+enum OAuthProvider {
+          GOOGLE
+GITHUB
+        }
+enum TokenPurpose {
+          EMAIL_VERIFICATION
+PASSWORD_RESET
+        }
+enum AvatarUploadMode {
+          BACKEND
+PRESIGNED
+        }
+interface UserProfileService {
+          
+                ~ getUserProfile(userId : Long) : UserLookupSnapshot
+~ editUserProfile(userId : Long, request : EditUserProfileRequest) : UserLookupSnapshot
+~ changeUserPassword(userId : Long, request : ChangePasswordRequest) : undefined
+~ deleteUserProfile(userId : Long) : undefined
+        }
+interface DeliveryAddressService {
+          
+                ~ getDeliveryAddresses(userId : Long) : DeliveryAddressSnapshot
+~ addDeliveryAddress(userId : Long, request : DeliveryAddressRequest) : undefined
+~ updateDeliveryAddress(addressId : Long, request : DeliveryAddressRequest) : undefined
+~ deleteDeliveryAddress(addressId : Long) : undefined
+~ setDefaultDeliveryAddress(addressId : Long) : undefined
+        }
+interface UserAvatarService {
+          
+                ~ uploadUserAvatar(userId : Long, fileMetadata : FileMetadataDto) : undefined
+~ getUserAvatarLink(userId : Long) : String
+~ deleteUserAvatar(userId : Long) : undefined
+        }
+interface ProductCatalogService {
+          
+                ~ getProducts(page : Integer, size : Integer) : ProductSnapshot
+~ getAllSellers() : String
+~ getAllBrands() : String
+~ getProductsByIds(productIds : Long) : ProductSnapshot
+~ getProductById(productId : Long) : ProductSnapshot
+        }
+interface ShoppingCartService {
+          
+                ~ getShoppingCart(userId : Long) : CartSnapshot
+~ addNewItemToShoppingCart(userId : Long, request : AddCartItemRequest) : undefined
+~ updateProductQuantityInShoppingCartItem(userId : Long, request : UpdateCartItemRequest) : undefined
+~ deleteItemsFromShoppingCart(userId : Long, itemIds : Long) : undefined
+        }
+interface OrderService {
+          
+                ~ getOrders(userId : Long) : OrderSnapshot
+~ createOrder(userId : Long, request : CheckoutOrderRequest) : OrderSnapshot
+~ getOrderById(orderId : Long) : OrderSnapshot
+~ cancelOrder(orderId : Long) : undefined
+~ requestRefund(orderId : Long) : undefined
+~ reorder(orderId : Long) : Long
+~ getOrderHistory(orderId : Long) : OrderStatusHistorySnapshot
+        }
+interface AdminOrderService {
+          
+                ~ getAllOrders() : OrderSnapshot
+~ updateOrderStatus(orderId : Long, newStatus : OrderStatus) : undefined
+~ deleteOrder(orderId : Long) : undefined
+        }
+interface PaymentService {
+          
+                ~ createCheckout(orderId : Long) : StripeSessionResult
+~ getCheckoutStatus(orderId : Long) : CheckoutStatusSnapshot
+~ processStripeWebhook(payload : String) : undefined
+        }
+interface ProductReviewService {
+          
+                ~ getProductReviewsAndRatings(productId : Long) : ProductReviewSnapshot
+~ getRatingAndReviewStat(productId : Long) : RatingSummarySnapshot
+~ addNewProductReview(productId : Long, request : AddProductReviewRequest) : ProductReviewSnapshot
+~ deleteProductReview(productId : Long, request : DeleteProductReviewRequest) : undefined
+~ getProductReview(productId : Long, request : GetProductReviewRequest) : ProductReviewSnapshot
+~ getUserReviews(userId : Long) : ProductReviewSnapshot
+~ addProductReviewLike(productId : Long, request : AddProductReviewLikeRequest) : undefined
+        }
+interface FavoriteService {
+          
+                ~ getListOfFavoriteProducts(userId : Long) : String
+~ addListOfFavoriteProducts(userId : Long, productIds : Long) : undefined
+~ removeProductFromFavorite(userId : Long, productId : Long) : undefined
+        }
+interface AuthenticationService {
+          
+                ~ register(request : RegisterRequest) : AuthResponse
+~ confirmEmail(token : String) : undefined
+~ authenticate(request : LoginRequest) : AuthResponse
+~ refreshToken(refreshToken : String) : AuthResponse
+~ logout(refreshToken : String) : undefined
+~ logoutAll(userId : Long) : undefined
+~ getSessions(userId : Long) : AuthSessionSnapshot
+~ revokeSession(userId : Long, request : RevokeSessionRequest) : undefined
+~ forgotPassword(email : String) : undefined
+~ changePassword(request : ResetPasswordRequest) : undefined
+        }
+interface OAuthService {
+          
+                ~ initiateOAuth(provider : OAuthProvider) : undefined
+~ completeOAuthCallback(request : OAuthCallbackRequest) : AuthResponse
+~ completeOAuthTokenHandoff(token : String) : AuthResponse
+        }
+interface SupportChatService {
+          
+                ~ getSupportChatStatus(userId : Long) : SupportChatStatusSnapshot
+~ getCurrentSupportChatConversation(userId : Long) : SupportConversationSnapshot
+~ createSupportChatWebSocketTicket(userId : Long) : String
+~ getSupportChatMessages(conversationId : Long) : SupportMessageSnapshot
+~ sendSupportChatMessage(conversationId : Long, message : String) : SupportMessageSnapshot
+        }
+
+AuditableEntity <|-- UserEntity
+
+
+
+
+AuditableEntity <|-- ProductInfo
+
+
+
+AuditableEntity <|-- Order
+
+
+
+AuditableEntity <|-- Payment
+
+
+
+
+
+
+
+
+AuditableEntity <|-- OAuthIdentityEntity
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+UserEntity "1" *-- "1" Address : UserAddress >
+UserEntity "1" *-- "-1" UserGrantedAuthority : UserAuthorities >
+UserEntity "1" *-- "-1" DeliveryAddressEntity : UserDeliveryAddresses >
+ShoppingCart "1" *-- "-1" ShoppingCartItem : CartItems >
+Order "1" *-- "-1" OrderItem : OrderItems >
+Order "1" *-- "1" OrderAddress : OrderShippingAddress >
+Order "1" *-- "-1" OrderStatusHistory : OrderStatusHistoryEntries >
+FavoriteListEntity "1" *-- "-1" FavoriteItemEntity : FavoriteItems >
+SupportConversationEntity "1" *-- "-1" SupportMessageEntity : ConversationMessages >
+hide <<DataType>> circle
+hide <<PrimitiveType>> circle
+hide <<PrimitiveType>> members
+@enduml
