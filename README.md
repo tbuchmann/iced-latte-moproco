@@ -130,7 +130,7 @@ All steps can be carried out entirely from **VS Code** using the MoProCo extensi
 
 ## MoProCo Toolchain
 
-This project was built entirely with the **MoProCo** (Model-Driven Programming with Code Generation) toolchain, provided as two VS Code extensions:
+This project was built entirely with the **MoProCo** (Modeling, Prompting, Coding) toolchain, provided as two VS Code extensions:
 
 | Extension | Purpose |
 |---|---|
@@ -150,3 +150,25 @@ The LLM post-processing step (`"Process Spring Boot Folder"`) was performed usin
 | Model | `deepseek-v4-flash` |
 | Hosting | Self-hosted on 8× RTX Pro 6000 |
 | Context window | 1,000,000 tokens |
+
+## Cite MoProCo
+
+```
+@inproceedings{BuchmannSP25,
+  author       = {Thomas Buchmann and
+                  Felix Schw{\"{a}}gerl and
+                  Ren{\'{e}} Peinl},
+  editor       = {Massimo Mecella and
+                  Arend Rensink and
+                  Leszek A. Maciaszek},
+  title        = {To Model, to Prompt, or to Code? The Choice Is Yours: {A} Multi-Paradigmatic
+                  Approach to Software Development},
+  booktitle    = {Proceedings of the 20th International Conference on Software Technologies,
+                  {ICSOFT} 2025, Bilbao, Spain, June 10-12, 2025},
+  pages        = {296--303},
+  publisher    = {{SCITEPRESS}},
+  year         = {2025},
+  url          = {https://doi.org/10.5220/0013557100003964},
+  doi          = {10.5220/0013557100003964}
+}
+```
