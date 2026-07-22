@@ -105,7 +105,7 @@ The application uses an H2 in-memory database; no external database setup is req
 
 ## Reproducing from the Spec
 
-All steps can be carried out entirely from **VS Code** using the MoProCo extensions.
+All steps can be carried out entirely from **VS Code** using the MoProCo extensions. [MoProCo Class-diag Language and Code Generator](https://github.com/tbuchmann/class-diag-langium/releases/download/Spring_Boot_Extension/class-diag-0.0.3.vsix), [MoProCo MDELLM Processor](https://github.com/tbuchmann/mdellmprocessor/releases/download/Spring_Boot_Version/mdellm-0.0.2.vsix).
 
 1. **Scaffold a new Spring Boot project**  
    Use the official [Spring Boot extension](https://marketplace.visualstudio.com/items?itemName=vmware.vscode-boot-dev-pack) to generate a new project skeleton.
