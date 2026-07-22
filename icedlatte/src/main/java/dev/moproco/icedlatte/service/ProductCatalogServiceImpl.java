@@ -25,8 +25,21 @@ public class ProductCatalogServiceImpl implements ProductCatalogService {
     @Transactional
     public List<ProductSnapshot> getProducts(Integer page, Integer size) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+    java.util.List<ProductInfo> pageResult = productInfoRepository.findByActiveTrue();
+    return pageResult.stream()
+        .map(product -> new ProductSnapshot(
+            product.getName(),
+            product.getDescription(),
+            product.getPrice(),
+            product.getQuantity(),
+            product.getActive(),
+            product.getAverageRating(),
+            product.getReviewsCount(),
+            product.getBrandName(),
+            product.getSellerName(),
+            product.getWeight()))
+        .collect(java.util.stream.Collectors.toList());
+// generated end
     }
 
     /**
@@ -37,8 +50,11 @@ public class ProductCatalogServiceImpl implements ProductCatalogService {
     @Transactional
     public List<String> getAllSellers() {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+return productInfoRepository.findByActiveTrue().stream()
+        .map(ProductInfo::getSellerName)
+        .distinct()
+        .collect(java.util.stream.Collectors.toList());
+// generated end
     }
 
     /**
@@ -49,8 +65,11 @@ public class ProductCatalogServiceImpl implements ProductCatalogService {
     @Transactional
     public List<String> getAllBrands() {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+return productInfoRepository.findByActiveTrue().stream()
+        .map(ProductInfo::getBrandName)
+        .distinct()
+        .collect(java.util.stream.Collectors.toList());
+// generated end
     }
 
     /**
@@ -61,8 +80,20 @@ public class ProductCatalogServiceImpl implements ProductCatalogService {
     @Transactional
     public List<ProductSnapshot> getProductsByIds(List<Long> productIds) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+return productInfoRepository.findAllById(productIds).stream()
+        .map(product -> new ProductSnapshot(
+            product.getName(),
+            product.getDescription(),
+            product.getPrice(),
+            product.getQuantity(),
+            product.getActive(),
+            product.getAverageRating(),
+            product.getReviewsCount(),
+            product.getBrandName(),
+            product.getSellerName(),
+            product.getWeight()))
+        .collect(java.util.stream.Collectors.toList());
+// generated end
     }
 
     /**
@@ -73,8 +104,21 @@ public class ProductCatalogServiceImpl implements ProductCatalogService {
     @Transactional
     public ProductSnapshot getProductById(Long productId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+ProductInfo product = productInfoRepository.findById(productId)
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.NOT_FOUND, "Product not found with id: " + productId));
+    return new ProductSnapshot(
+        product.getName(),
+        product.getDescription(),
+        product.getPrice(),
+        product.getQuantity(),
+        product.getActive(),
+        product.getAverageRating(),
+        product.getReviewsCount(),
+        product.getBrandName(),
+        product.getSellerName(),
+        product.getWeight());
+// generated end
     }
 
 }

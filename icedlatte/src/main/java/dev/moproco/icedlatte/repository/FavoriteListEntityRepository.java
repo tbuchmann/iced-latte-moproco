@@ -6,6 +6,6 @@ import java.time.LocalDateTime;
 
 public interface FavoriteListEntityRepository extends JpaRepository<FavoriteListEntity, Long> {
     java.util.List<FavoriteListEntity> findByUserId(Long userId);
-    java.util.Optional<FavoriteListEntity> findByUpdatedAt(LocalDateTime updatedAt);
+    java.util.Optional<FavoriteListEntity> findByUpdatedAt(LocalDateTime updatedAt);    
 
 }

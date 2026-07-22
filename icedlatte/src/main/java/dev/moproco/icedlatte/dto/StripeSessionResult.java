@@ -1,3 +1,3 @@
 package dev.moproco.icedlatte.dto;
 
-public record StripeSessionResult(Long sessionId, String checkoutUrl) {}
+public record StripeSessionResult(String sessionId, String checkoutUrl) {}

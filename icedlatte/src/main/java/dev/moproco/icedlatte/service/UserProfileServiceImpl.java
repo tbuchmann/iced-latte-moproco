@@ -58,8 +58,11 @@ public class UserProfileServiceImpl implements UserProfileService {
     @Transactional
     public UserLookupSnapshot getUserProfile(Long userId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+UserEntity user = userEntityRepository.findById(userId)
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.NOT_FOUND, "User not found with id: " + userId));
+    return new UserLookupSnapshot(user.getFirstName(), user.getLastName(), user.getEmail());
+// generated end
     }
 
     /**
@@ -70,8 +73,24 @@ public class UserProfileServiceImpl implements UserProfileService {
     @Transactional
     public UserLookupSnapshot editUserProfile(Long userId, EditUserProfileRequest request) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+UserEntity user = userEntityRepository.findById(userId)
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.NOT_FOUND, "User not found with id: " + userId));
+    if (request.firstName() != null) {
+        user.setFirstName(request.firstName());
+    }
+    if (request.lastName() != null) {
+        user.setLastName(request.lastName());
+    }
+    if (request.birthDate() != null) {
+        user.setBirthDate(request.birthDate());
+    }
+    if (request.phoneNumber() != null) {
+        user.setPhoneNumber(request.phoneNumber());
+    }
+    userEntityRepository.save(user);
+    return new UserLookupSnapshot(user.getFirstName(), user.getLastName(), user.getEmail());
+// generated end
     }
 
     /**
@@ -82,8 +101,15 @@ public class UserProfileServiceImpl implements UserProfileService {
     @Transactional
     public void changeUserPassword(Long userId, ChangePasswordRequest request) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+UserEntity user = userEntityRepository.findById(userId)
+            .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.NOT_FOUND, "User not found with id: " + userId));
+    if (!org.springframework.security.crypto.bcrypt.BCrypt.checkpw(request.currentPassword(), user.getPassword())) {
+        throw new org.springframework.security.authentication.BadCredentialsException("Current password is incorrect");
+    }
+    user.setPassword(org.springframework.security.crypto.bcrypt.BCrypt.hashpw(request.newPassword(), org.springframework.security.crypto.bcrypt.BCrypt.gensalt()));
+    userEntityRepository.save(user);
+// generated end
     }
 
     /**
@@ -94,8 +120,21 @@ public class UserProfileServiceImpl implements UserProfileService {
     @Transactional
     public void deleteUserProfile(Long userId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+UserEntity user = userEntityRepository.findById(userId)
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.NOT_FOUND, "User not found with id: " + userId));
+    userGrantedAuthorityRepository.deleteAll(user.getAuthorities());
+    if (user.getAddress() != null) {
+        addressRepository.delete(user.getAddress());
+    }
+    deliveryAddressEntityRepository.deleteAll(user.getDeliveryAddresses());
+    userAvatarUploadRepository.findByUserId(userId).forEach(userAvatarUploadRepository::delete);
+    authSessionEntityRepository.findByUserId(userId).forEach(authSessionEntityRepository::delete);
+    oAuthIdentityEntityRepository.findByUserId(userId).forEach(oAuthIdentityEntityRepository::delete);
+    favoriteListEntityRepository.findByUserId(userId).forEach(favoriteListEntityRepository::delete);
+    shoppingCartRepository.findByUserId(userId).forEach(shoppingCartRepository::delete);
+    userEntityRepository.delete(user);
+// generated end
     }
 
 }

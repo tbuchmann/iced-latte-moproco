@@ -2,6 +2,7 @@ package dev.moproco.icedlatte.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import dev.moproco.icedlatte.domain.DeliveryAddressEntity;
+import dev.moproco.icedlatte.domain.UserEntity;
 
 
 public interface DeliveryAddressEntityRepository extends JpaRepository<DeliveryAddressEntity, Long> {
@@ -12,5 +13,6 @@ public interface DeliveryAddressEntityRepository extends JpaRepository<DeliveryA
     java.util.Optional<DeliveryAddressEntity> findByPostcode(String postcode);
     java.util.List<DeliveryAddressEntity> findByIsDefaultTrue();
     java.util.List<DeliveryAddressEntity> findByIsDefaultFalse();
+    java.util.Optional<DeliveryAddressEntity> findByUser(UserEntity user);
 
 }

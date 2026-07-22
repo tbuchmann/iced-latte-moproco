@@ -12,6 +12,7 @@ import dev.moproco.icedlatte.dto.SupportChatStatusSnapshot;
 import dev.moproco.icedlatte.dto.SupportConversationSnapshot;
 import dev.moproco.icedlatte.dto.SupportMessageSnapshot;
 
+
 @Service
 public class SupportChatServiceImpl implements SupportChatService {
 
@@ -31,8 +32,17 @@ public class SupportChatServiceImpl implements SupportChatService {
     @Transactional
     public SupportChatStatusSnapshot getSupportChatStatus(Long userId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+// Check if the user has an existing conversation
+    java.util.List<SupportConversationEntity> conversations = supportConversationEntityRepository.findByUserId(userId);
+    if (!conversations.isEmpty()) {
+        // User has a conversation, so support is available
+        return new SupportChatStatusSnapshot(true, null);
+    }
+    // No conversation found; determine queue position based on pending conversations
+    // Count all conversations (as a proxy for queue) - in a real system you'd filter by status
+    long queuePosition = supportConversationEntityRepository.count() + 1;
+    return new SupportChatStatusSnapshot(true, (int) queuePosition);
+// generated end
     }
 
     /**
@@ -43,8 +53,13 @@ public class SupportChatServiceImpl implements SupportChatService {
     @Transactional
     public SupportConversationSnapshot getCurrentSupportChatConversation(Long userId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+java.util.List<SupportConversationEntity> conversations = supportConversationEntityRepository.findByUserId(userId);
+    if (conversations.isEmpty()) {
+        return null;
+    }
+    SupportConversationEntity conversation = conversations.get(0);
+    return new SupportConversationSnapshot(conversation.getUserId(), conversation.getCreatedAt(), conversation.getLastMessageAt());
+// generated end
     }
 
     /**
@@ -55,8 +70,17 @@ public class SupportChatServiceImpl implements SupportChatService {
     @Transactional
     public String createSupportChatWebSocketTicket(Long userId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+// Generate a unique ticket string using UUID
+    String ticket = java.util.UUID.randomUUID().toString();
+    // Store the ticket in the conversation entity for later validation
+    java.util.List<SupportConversationEntity> conversations = supportConversationEntityRepository.findByUserId(userId);
+    if (!conversations.isEmpty()) {
+        SupportConversationEntity conversation = conversations.get(0);
+        conversation.setTelegramMessageThreadId((long) ticket.hashCode());
+        supportConversationEntityRepository.save(conversation);
+    }
+    return ticket;
+// generated end
     }
 
     /**
@@ -67,8 +91,18 @@ public class SupportChatServiceImpl implements SupportChatService {
     @Transactional
     public List<SupportMessageSnapshot> getSupportChatMessages(Long conversationId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+// Retrieve messages for the given conversationId, sorted by createdAt ascending
+    List<SupportMessageEntity> messages = supportMessageEntityRepository.findByConversationId(conversationId);
+    messages.sort((a, b) -> a.getCreatedAt().compareTo(b.getCreatedAt()));
+    return messages.stream()
+            .map(msg -> new SupportMessageSnapshot(
+                    msg.getConversationId(),
+                    msg.getSenderType(),
+                    msg.getBody(),
+                    msg.getDeliveryStatus(),
+                    msg.getCreatedAt()))
+            .collect(java.util.stream.Collectors.toList());
+// generated end
     }
 
     /**
@@ -79,8 +113,23 @@ public class SupportChatServiceImpl implements SupportChatService {
     @Transactional
     public SupportMessageSnapshot sendSupportChatMessage(Long conversationId, String message) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+SupportConversationEntity conversation = supportConversationEntityRepository.findById(conversationId)
+            .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.NOT_FOUND, "Conversation not found"));
+    SupportMessageEntity messageEntity = new SupportMessageEntity();
+    messageEntity.setConversationId(conversationId);
+    messageEntity.setSenderType(dev.moproco.icedlatte.domain.SupportMessageSenderType.CUSTOMER);
+    messageEntity.setBody(message);
+    messageEntity.setNormalizedBody(message);
+    messageEntity.setDeliveryStatus(dev.moproco.icedlatte.domain.SupportMessageDeliveryStatus.PENDING);
+    messageEntity.setOperatorInspectionRequired(false);
+    messageEntity.setVisibleToCustomer(true);
+    messageEntity.setCreatedAt(java.time.LocalDateTime.now());
+    messageEntity = supportMessageEntityRepository.save(messageEntity);
+    conversation.setLastMessageAt(java.time.LocalDateTime.now());
+    supportConversationEntityRepository.save(conversation);
+    return new SupportMessageSnapshot(messageEntity.getConversationId(), messageEntity.getSenderType(), messageEntity.getBody(), messageEntity.getDeliveryStatus(), messageEntity.getCreatedAt());
+// generated end
     }
 
 }

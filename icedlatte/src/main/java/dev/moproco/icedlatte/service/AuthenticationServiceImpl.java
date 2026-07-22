@@ -20,6 +20,8 @@ import dev.moproco.icedlatte.dto.LoginRequest;
 import dev.moproco.icedlatte.dto.RegisterRequest;
 import dev.moproco.icedlatte.dto.ResetPasswordRequest;
 import dev.moproco.icedlatte.dto.RevokeSessionRequest;
+import dev.moproco.icedlatte.domain.Authority;
+
 
 @Service
 public class AuthenticationServiceImpl implements AuthenticationService {
@@ -46,8 +48,38 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+UserEntity user = new UserEntity();
+    user.setEmail(request.email());
+    user.setPassword(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode(request.password()));
+    user.setFirstName(request.firstName());
+    user.setLastName(request.lastName());
+    user.setEnabled(false);
+    user.setOauthUser(false);
+    user.setAccountNonExpired(true);
+    user.setAccountNonLocked(true);
+    user.setCredentialsNonExpired(true);
+    user = userEntityRepository.save(user);
+
+    UserGrantedAuthority authority = new UserGrantedAuthority();
+    authority.setAuthority(Authority.USER);
+    authority.setUser(user);
+    userGrantedAuthorityRepository.save(authority);
+
+    String accessToken = java.util.UUID.randomUUID().toString();
+    String refreshToken = java.util.UUID.randomUUID().toString();
+    String refreshTokenHash = new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode(refreshToken);
+
+    AuthSessionEntity session = new AuthSessionEntity();
+    session.setUserId(user.getId());
+    session.setRefreshTokenHash(refreshTokenHash);
+    session.setCreatedAt(java.time.LocalDateTime.now());
+    session.setExpiresAt(java.time.LocalDateTime.now().plusDays(30));
+    session.setLastUsedAt(java.time.LocalDateTime.now());
+    session.setCompromised(false);
+    authSessionEntityRepository.save(session);
+
+    return new AuthResponse(accessToken, refreshToken, user.getId());
+// generated end
     }
 
     /**
@@ -58,8 +90,23 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Transactional
     public void confirmEmail(String token) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+EmailTokenEntity emailToken = emailTokenEntityRepository.findByToken(token)
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.NOT_FOUND, "Token not found"));
+    if (emailToken.getPurpose() != dev.moproco.icedlatte.domain.TokenPurpose.EMAIL_VERIFICATION
+        || emailToken.getUsedAt() != null
+        || emailToken.getExpiresAt().isBefore(java.time.LocalDateTime.now())) {
+        throw new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.NOT_FOUND, "Token not found or already used");
+    }
+    UserEntity user = userEntityRepository.findById(emailToken.getUserId())
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.NOT_FOUND, "User not found"));
+    user.setEnabled(true);
+    userEntityRepository.save(user);
+    emailToken.setUsedAt(java.time.LocalDateTime.now());
+    emailTokenEntityRepository.save(emailToken);
+// generated end
     }
 
     /**
@@ -70,8 +117,27 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Transactional
     public AuthResponse authenticate(LoginRequest request) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+UserEntity user = userEntityRepository.findByEmail(request.email())
+        .orElseThrow(() -> new org.springframework.security.authentication.BadCredentialsException("Invalid credentials"));
+    if (!user.getEnabled() || !user.getAccountNonLocked()) {
+        throw new org.springframework.security.authentication.BadCredentialsException("Invalid credentials");
+    }
+    if (!new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().matches(request.password(), user.getPassword())) {
+        throw new org.springframework.security.authentication.BadCredentialsException("Invalid credentials");
+    }
+    String accessToken = java.util.UUID.randomUUID().toString();
+    String refreshToken = java.util.UUID.randomUUID().toString();
+    String refreshTokenHash = new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode(refreshToken);
+    AuthSessionEntity session = new AuthSessionEntity();
+    session.setUserId(user.getId());
+    session.setRefreshTokenHash(refreshTokenHash);
+    session.setCreatedAt(java.time.LocalDateTime.now());
+    session.setExpiresAt(java.time.LocalDateTime.now().plusDays(30));
+    session.setLastUsedAt(java.time.LocalDateTime.now());
+    session.setCompromised(false);
+    authSessionEntityRepository.save(session);
+    return new AuthResponse(accessToken, refreshToken, user.getId());
+// generated end
     }
 
     /**
@@ -82,8 +148,19 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Transactional
     public AuthResponse refreshToken(String refreshToken) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+String refreshTokenHash = new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode(refreshToken);
+    AuthSessionEntity session = authSessionEntityRepository.findByRefreshTokenHash(refreshTokenHash)
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.NOT_FOUND, "Session not found"));
+    if (session.getRevokedAt() != null || session.getExpiresAt().isBefore(java.time.LocalDateTime.now())) {
+        throw new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.BAD_REQUEST, "Refresh token is revoked or expired");
+    }
+    String newAccessToken = java.util.UUID.randomUUID().toString();
+    session.setLastUsedAt(java.time.LocalDateTime.now());
+    authSessionEntityRepository.save(session);
+    return new AuthResponse(newAccessToken, refreshToken, session.getUserId());
+// generated end
     }
 
     /**
@@ -94,8 +171,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Transactional
     public void logout(String refreshToken) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+String refreshTokenHash = new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode(refreshToken);
+    AuthSessionEntity session = authSessionEntityRepository.findByRefreshTokenHash(refreshTokenHash)
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.NOT_FOUND, "Session not found"));
+    session.setRevokedAt(java.time.LocalDateTime.now());
+    authSessionEntityRepository.save(session);
+// generated end
     }
 
     /**
@@ -106,8 +188,15 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Transactional
     public void logoutAll(Long userId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+List<AuthSessionEntity> sessions = authSessionEntityRepository.findByUserId(userId);
+    java.time.LocalDateTime now = java.time.LocalDateTime.now();
+    for (AuthSessionEntity session : sessions) {
+        if (session.getRevokedAt() == null) {
+            session.setRevokedAt(now);
+        }
+    }
+    authSessionEntityRepository.saveAll(sessions);
+// generated end
     }
 
     /**
@@ -118,8 +207,18 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Transactional
     public List<AuthSessionSnapshot> getSessions(Long userId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+List<AuthSessionEntity> sessions = authSessionEntityRepository.findByUserId(userId);
+    return sessions.stream()
+        .filter(s -> s.getRevokedAt() == null)
+        .map(s -> new AuthSessionSnapshot(
+            s.getUserAgent(),
+            s.getIpAddress(),
+            s.getCreatedAt(),
+            s.getLastUsedAt(),
+            s.getExpiresAt()
+        ))
+        .collect(java.util.stream.Collectors.toList());
+// generated end
     }
 
     /**
@@ -130,8 +229,16 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Transactional
     public void revokeSession(Long userId, RevokeSessionRequest request) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+AuthSessionEntity session = authSessionEntityRepository.findById(request.sessionId())
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.NOT_FOUND, "Session not found"));
+    if (!session.getUserId().equals(userId)) {
+        throw new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.BAD_REQUEST, "Session does not belong to the given user");
+    }
+    session.setRevokedAt(java.time.LocalDateTime.now());
+    authSessionEntityRepository.save(session);
+// generated end
     }
 
     /**
@@ -142,8 +249,16 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Transactional
     public void forgotPassword(String email) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+UserEntity user = userEntityRepository.findByEmail(email)
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.NOT_FOUND, "Email not found"));
+    EmailTokenEntity tokenEntity = new EmailTokenEntity();
+    tokenEntity.setUserId(user.getId());
+    tokenEntity.setToken(java.util.UUID.randomUUID().toString());
+    tokenEntity.setPurpose(dev.moproco.icedlatte.domain.TokenPurpose.PASSWORD_RESET);
+    tokenEntity.setExpiresAt(java.time.LocalDateTime.now().plusHours(24));
+    emailTokenEntityRepository.save(tokenEntity);
+// generated end
     }
 
     /**
@@ -154,8 +269,23 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Transactional
     public void changePassword(ResetPasswordRequest request) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+EmailTokenEntity emailToken = emailTokenEntityRepository.findByToken(request.resetToken())
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.NOT_FOUND, "Token not found"));
+    if (emailToken.getPurpose() != dev.moproco.icedlatte.domain.TokenPurpose.PASSWORD_RESET
+        || emailToken.getUsedAt() != null
+        || emailToken.getExpiresAt().isBefore(java.time.LocalDateTime.now())) {
+        throw new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.NOT_FOUND, "Token not found or already used");
+    }
+    UserEntity user = userEntityRepository.findById(emailToken.getUserId())
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.NOT_FOUND, "User not found"));
+    user.setPassword(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode(request.newPassword()));
+    userEntityRepository.save(user);
+    emailToken.setUsedAt(java.time.LocalDateTime.now());
+    emailTokenEntityRepository.save(emailToken);
+// generated end
     }
 
 }

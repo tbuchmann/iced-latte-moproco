@@ -10,6 +10,8 @@ import dev.moproco.icedlatte.repository.UserAvatarUploadRepository;
 import dev.moproco.icedlatte.domain.UserEntity;
 import dev.moproco.icedlatte.repository.UserEntityRepository;
 import dev.moproco.icedlatte.dto.FileMetadataDto;
+import dev.moproco.icedlatte.domain.UserAvatarUploadStatus;
+
 
 @Service
 public class UserAvatarServiceImpl implements UserAvatarService {
@@ -32,8 +34,30 @@ public class UserAvatarServiceImpl implements UserAvatarService {
     @Transactional
     public void uploadUserAvatar(Long userId, FileMetadataDto fileMetadata) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+UserEntity user = userEntityRepository.findById(userId)
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "User not found"));
+
+    // Mark any previous active avatar as SUPERSEDED
+    java.util.List<UserAvatarUpload> activeAvatars = userAvatarUploadRepository.findByActiveTrue();
+    for (UserAvatarUpload avatar : activeAvatars) {
+        if (avatar.getUserId().equals(userId)) {
+            avatar.setActive(false);
+            avatar.setStatus(UserAvatarUploadStatus.SUPERSEDED);
+            userAvatarUploadRepository.save(avatar);
+        }
+    }
+
+    // Create new UserAvatarUpload with PENDING_UPLOAD status
+    UserAvatarUpload newUpload = new UserAvatarUpload();
+    newUpload.setUserId(userId);
+    newUpload.setStatus(UserAvatarUploadStatus.PENDING_UPLOAD);
+    newUpload.setOriginalBucket(fileMetadata.bucketName());
+    newUpload.setOriginalKey(fileMetadata.fileName());
+    newUpload.setActive(true);
+    newUpload.setCreatedAt(java.time.LocalDateTime.now());
+
+    userAvatarUploadRepository.save(newUpload);
+// generated end
     }
 
     /**
@@ -44,8 +68,20 @@ public class UserAvatarServiceImpl implements UserAvatarService {
     @Transactional
     public String getUserAvatarLink(Long userId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+UserAvatarUpload activeAvatar = userAvatarUploadRepository.findByUserId(userId).stream()
+            .filter(u -> u.getActive() != null && u.getActive() && u.getStatus() == UserAvatarUploadStatus.READY)
+            .findFirst()
+            .orElse(null);
+    if (activeAvatar == null) {
+        return null;
+    }
+    String bucket = activeAvatar.getProcessedBucket();
+    String key = activeAvatar.getProcessedKey();
+    if (bucket == null || key == null) {
+        return null;
+    }
+    return bucket + "/" + key;
+// generated end
     }
 
     /**
@@ -56,8 +92,16 @@ public class UserAvatarServiceImpl implements UserAvatarService {
     @Transactional
     public void deleteUserAvatar(Long userId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+// Find the user's active avatar(s) and mark them as SUPERSEDED
+    java.util.List<UserAvatarUpload> userAvatars = userAvatarUploadRepository.findByUserId(userId);
+    for (UserAvatarUpload avatar : userAvatars) {
+        if (Boolean.TRUE.equals(avatar.getActive())) {
+            avatar.setActive(false);
+            avatar.setStatus(UserAvatarUploadStatus.SUPERSEDED);
+            userAvatarUploadRepository.save(avatar);
+        }
+    }
+// generated end
     }
 
 }

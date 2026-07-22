@@ -38,8 +38,12 @@ public class ProductReviewServiceImpl implements ProductReviewService {
     @Transactional
     public List<ProductReviewSnapshot> getProductReviewsAndRatings(Long productId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+List<ProductReview> reviews = productReviewRepository.findByProductId(productId);
+    return reviews.stream()
+            .sorted((r1, r2) -> r2.getCreatedAt().compareTo(r1.getCreatedAt()))
+            .map(r -> new ProductReviewSnapshot(r.getUserId(), r.getProductId(), r.getText(), r.getProductRating(), r.getLikesCount(), r.getDislikesCount(), r.getCreatedAt()))
+            .collect(java.util.stream.Collectors.toList());
+// generated end
     }
 
     /**
@@ -50,8 +54,13 @@ public class ProductReviewServiceImpl implements ProductReviewService {
     @Transactional
     public RatingSummarySnapshot getRatingAndReviewStat(Long productId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+List<ProductReview> reviews = productReviewRepository.findByProductId(productId);
+    if (reviews.isEmpty()) {
+        return new RatingSummarySnapshot(0.0, 0);
+    }
+    double avg = reviews.stream().mapToInt(ProductReview::getProductRating).average().orElse(0.0);
+    return new RatingSummarySnapshot(avg, reviews.size());
+// generated end
     }
 
     /**
@@ -62,8 +71,36 @@ public class ProductReviewServiceImpl implements ProductReviewService {
     @Transactional
     public ProductReviewSnapshot addNewProductReview(Long productId, AddProductReviewRequest request) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+ProductInfo productInfo = productInfoRepository.findById(productId)
+            .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.NOT_FOUND, "Product not found with id: " + productId));
+
+    java.util.List<ProductReview> existingReviews = productReviewRepository.findByProductId(productId);
+    boolean alreadyReviewed = existingReviews.stream()
+            .anyMatch(review -> review.getUserId().equals(request.userId()));
+    if (alreadyReviewed) {
+        throw new IllegalArgumentException("User has already reviewed this product");
+    }
+
+    ProductReview review = new ProductReview();
+    review.setUserId(request.userId());
+    review.setProductId(productId);
+    review.setText(request.text());
+    review.setProductRating(request.rating());
+    review.setLikesCount(0);
+    review.setDislikesCount(0);
+    review.setCreatedAt(java.time.LocalDateTime.now());
+    productReviewRepository.save(review);
+
+    List<ProductReview> allReviews = productReviewRepository.findByProductId(productId);
+    double avg = allReviews.stream().mapToInt(ProductReview::getProductRating).average().orElse(0.0);
+    productInfo.setAverageRating(avg);
+    productInfo.setReviewsCount(allReviews.size());
+    productInfoRepository.save(productInfo);
+
+    return new ProductReviewSnapshot(review.getUserId(), review.getProductId(), review.getText(),
+            review.getProductRating(), review.getLikesCount(), review.getDislikesCount(), review.getCreatedAt());
+// generated end
     }
 
     /**
@@ -74,8 +111,34 @@ public class ProductReviewServiceImpl implements ProductReviewService {
     @Transactional
     public void deleteProductReview(Long productId, DeleteProductReviewRequest request) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+ProductReview review = productReviewRepository.findById(request.productReviewId())
+            .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.NOT_FOUND, "Review not found with id: " + request.productReviewId()));
+
+    if (!review.getProductId().equals(productId)) {
+        throw new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.BAD_REQUEST, "Review does not belong to the specified product");
+    }
+
+    productReviewLikeRepository.findByProductReviewId(review.getId()).ifPresent(productReviewLikeRepository::delete);
+
+    productReviewRepository.delete(review);
+
+    ProductInfo productInfo = productInfoRepository.findById(productId)
+            .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.NOT_FOUND, "Product not found with id: " + productId));
+
+    List<ProductReview> remainingReviews = productReviewRepository.findByProductId(productId);
+    if (remainingReviews.isEmpty()) {
+        productInfo.setAverageRating(0.0);
+        productInfo.setReviewsCount(0);
+    } else {
+        double avg = remainingReviews.stream().mapToInt(ProductReview::getProductRating).average().orElse(0.0);
+        productInfo.setAverageRating(avg);
+        productInfo.setReviewsCount(remainingReviews.size());
+    }
+    productInfoRepository.save(productInfo);
+// generated end
     }
 
     /**
@@ -86,8 +149,13 @@ public class ProductReviewServiceImpl implements ProductReviewService {
     @Transactional
     public ProductReviewSnapshot getProductReview(Long productId, GetProductReviewRequest request) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+List<ProductReview> reviews = productReviewRepository.findByProductId(productId);
+    return reviews.stream()
+            .filter(r -> r.getUserId().equals(request.userId()))
+            .findFirst()
+            .map(r -> new ProductReviewSnapshot(r.getUserId(), r.getProductId(), r.getText(), r.getProductRating(), r.getLikesCount(), r.getDislikesCount(), r.getCreatedAt()))
+            .orElse(null);
+// generated end
     }
 
     /**
@@ -98,8 +166,12 @@ public class ProductReviewServiceImpl implements ProductReviewService {
     @Transactional
     public List<ProductReviewSnapshot> getUserReviews(Long userId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+List<ProductReview> reviews = productReviewRepository.findByUserId(userId);
+    return reviews.stream()
+            .sorted((r1, r2) -> r2.getCreatedAt().compareTo(r1.getCreatedAt()))
+            .map(r -> new ProductReviewSnapshot(r.getUserId(), r.getProductId(), r.getText(), r.getProductRating(), r.getLikesCount(), r.getDislikesCount(), r.getCreatedAt()))
+            .collect(java.util.stream.Collectors.toList());
+// generated end
     }
 
     /**
@@ -110,8 +182,43 @@ public class ProductReviewServiceImpl implements ProductReviewService {
     @Transactional
     public void addProductReviewLike(Long productId, AddProductReviewLikeRequest request) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+ProductReview review = productReviewRepository.findById(productId)
+            .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.NOT_FOUND, "Review not found with id: " + productId));
+
+    java.util.Optional<ProductReviewLike> existingLike = productReviewLikeRepository.findByProductReviewId(review.getId())
+            .filter(like -> like.getUserId().equals(request.userId()));
+
+    if (existingLike.isPresent()) {
+        ProductReviewLike like = existingLike.get();
+        boolean oldIsLike = like.getIsLike();
+        boolean newIsLike = request.isLike();
+        if (oldIsLike != newIsLike) {
+            if (oldIsLike) {
+                review.setLikesCount(review.getLikesCount() - 1);
+                review.setDislikesCount(review.getDislikesCount() + 1);
+            } else {
+                review.setDislikesCount(review.getDislikesCount() - 1);
+                review.setLikesCount(review.getLikesCount() + 1);
+            }
+        }
+        like.setIsLike(newIsLike);
+        productReviewLikeRepository.save(like);
+    } else {
+        ProductReviewLike newLike = new ProductReviewLike();
+        newLike.setProductReviewId(review.getId());
+        newLike.setProductId(productId);
+        newLike.setUserId(request.userId());
+        newLike.setIsLike(request.isLike());
+        productReviewLikeRepository.save(newLike);
+        if (request.isLike()) {
+            review.setLikesCount(review.getLikesCount() + 1);
+        } else {
+            review.setDislikesCount(review.getDislikesCount() + 1);
+        }
+    }
+    productReviewRepository.save(review);
+// generated end
     }
 
 }

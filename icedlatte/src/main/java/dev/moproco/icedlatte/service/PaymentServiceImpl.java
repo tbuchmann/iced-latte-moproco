@@ -11,6 +11,9 @@ import dev.moproco.icedlatte.domain.StripeWebhookEvent;
 import dev.moproco.icedlatte.repository.StripeWebhookEventRepository;
 import dev.moproco.icedlatte.dto.CheckoutStatusSnapshot;
 import dev.moproco.icedlatte.dto.StripeSessionResult;
+import dev.moproco.icedlatte.domain.WebhookEventStatus;
+import dev.moproco.icedlatte.domain.PaymentStatus;
+
 
 @Service
 public class PaymentServiceImpl implements PaymentService {
@@ -33,8 +36,61 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional
     public StripeSessionResult createCheckout(Long orderId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+Order order = orderRepository.findById(orderId)
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Order not found with id: " + orderId));
+
+    long amountMinor = 0L;
+    String currency = "usd";
+    if (order.getItems() != null && !order.getItems().isEmpty()) {
+        for (dev.moproco.icedlatte.domain.OrderItem item : order.getItems()) {
+            long itemPriceMinor = (long) Math.round(item.getProductPrice() * 100);
+            amountMinor += itemPriceMinor * item.getProductsQuantity();
+        }
+    }
+
+    Payment payment = new Payment();
+    payment.setOrderId(order.getId());
+    payment.setUserId(order.getUserId());
+    payment.setProvider(dev.moproco.icedlatte.domain.PaymentProvider.STRIPE);
+    payment.setStatus(dev.moproco.icedlatte.domain.PaymentStatus.STRIPE_SESSION_CREATED);
+    payment.setAmountMinor(amountMinor);
+    payment.setCurrency(currency);
+    payment.setCheckoutIdempotencyKey(java.util.UUID.randomUUID().toString());
+    payment = paymentRepository.save(payment);
+
+    com.stripe.Stripe.apiKey = "sk_test_placeholder";
+    java.util.Map<String, Object> params = new java.util.HashMap<>();
+    params.put("mode", "payment");
+    params.put("success_url", "https://example.com/success");
+    params.put("cancel_url", "https://example.com/cancel");
+    params.put("client_reference_id", order.getId().toString());
+
+    java.util.List<Object> lineItems = new java.util.ArrayList<>();
+    if (order.getItems() != null) {
+        for (dev.moproco.icedlatte.domain.OrderItem item : order.getItems()) {
+            java.util.Map<String, Object> lineItem = new java.util.HashMap<>();
+            java.util.Map<String, Object> priceData = new java.util.HashMap<>();
+            priceData.put("currency", currency);
+            java.util.Map<String, Object> productData = new java.util.HashMap<>();
+            productData.put("name", item.getProductName());
+            priceData.put("product_data", productData);
+            priceData.put("unit_amount", (long) Math.round(item.getProductPrice() * 100));
+            lineItem.put("price_data", priceData);
+            lineItem.put("quantity", item.getProductsQuantity());
+            lineItems.add(lineItem);
+        }
+    }
+    params.put("line_items", lineItems);
+
+    try {
+        com.stripe.model.checkout.Session session = com.stripe.model.checkout.Session.create(params);
+        payment.setProviderSessionId(session.getId());
+        paymentRepository.save(payment);
+        return new StripeSessionResult(session.getId(), session.getUrl());
+    } catch (Exception e) {
+        throw new RuntimeException("Failed to create Stripe checkout session", e);
+    }
+// generated end
     }
 
     /**
@@ -45,8 +101,11 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional
     public CheckoutStatusSnapshot getCheckoutStatus(Long orderId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+Payment payment = paymentRepository.findByOrderId(orderId).stream()
+        .findFirst()
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "No payment found for order id: " + orderId));
+    return new CheckoutStatusSnapshot(payment.getStatus(), payment.getProviderSessionId());
+// generated end
     }
 
     /**
@@ -57,8 +116,62 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional
     public void processStripeWebhook(String payload) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+// Parse the payload to get the Stripe event
+    com.stripe.model.Event event;
+    try {
+        event = com.stripe.net.Webhook.constructEvent(payload, null, null);
+    } catch (Exception e) {
+        throw new IllegalArgumentException("Invalid Stripe webhook payload", e);
+    }
+
+    String stripeEventId = event.getId();
+    String eventType = event.getType();
+
+    // Idempotency check: if already processed, skip
+    if (stripeWebhookEventRepository.findByStripeEventId(stripeEventId).isPresent()) {
+        return;
+    }
+
+    // Create StripeWebhookEvent with status PROCESSING
+    StripeWebhookEvent webhookEvent = new StripeWebhookEvent();
+    webhookEvent.setStripeEventId(stripeEventId);
+    webhookEvent.setEventType(eventType);
+    webhookEvent.setStatus(WebhookEventStatus.PROCESSING);
+    webhookEvent.setReceivedAt(java.time.LocalDateTime.now());
+    stripeWebhookEventRepository.save(webhookEvent);
+
+    // Determine payment status based on event type
+    PaymentStatus newStatus = null;
+    if ("payment_intent.succeeded".equals(eventType)) {
+        newStatus = PaymentStatus.PAID;
+    } else if ("payment_intent.payment_failed".equals(eventType)) {
+        newStatus = PaymentStatus.FAILED;
+    } else if ("payment_intent.canceled".equals(eventType)) {
+        newStatus = PaymentStatus.CANCELED;
+    }
+
+    if (newStatus != null) {
+        // Get the payment intent ID from the event
+        com.stripe.model.PaymentIntent paymentIntent = (com.stripe.model.PaymentIntent) event.getDataObjectDeserializer().getObject().orElse(null);
+        if (paymentIntent != null) {
+            String paymentIntentId = paymentIntent.getId();
+            // Find payment by providerPaymentIntentId
+            java.util.Optional<Payment> paymentOpt = paymentRepository.findByProviderPaymentIntentId(paymentIntentId);
+            if (paymentOpt.isPresent()) {
+                Payment payment = paymentOpt.get();
+                payment.setStatus(newStatus);
+                payment.setLatestEventType(eventType);
+                payment.setRawEventId(stripeEventId);
+                paymentRepository.save(payment);
+            }
+        }
+    }
+
+    // Mark webhook event as processed
+    webhookEvent.setStatus(WebhookEventStatus.PROCESSED);
+    webhookEvent.setProcessedAt(java.time.LocalDateTime.now());
+    stripeWebhookEventRepository.save(webhookEvent);
+// generated end
     }
 
 }

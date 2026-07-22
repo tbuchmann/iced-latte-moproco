@@ -3,7 +3,6 @@ package dev.moproco.icedlatte.service;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import dev.moproco.icedlatte.OAuthService;
-import dev.moproco.icedlatte.domain.UserGrantedAuthority;
 import dev.moproco.icedlatte.repository.UserGrantedAuthorityRepository;
 import dev.moproco.icedlatte.domain.AuthSessionEntity;
 import dev.moproco.icedlatte.repository.AuthSessionEntityRepository;
@@ -38,8 +37,43 @@ public class OAuthServiceImpl implements OAuthService {
     @Transactional
     public void initiateOAuth(OAuthProvider provider) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+// Build the authorization URL for the given provider
+    // Using standard OAuth2 authorization endpoint patterns
+    String authorizationUrl;
+    String clientId;
+    String redirectUri = "http://localhost:8080/oauth/callback/" + provider.name().toLowerCase();
+    String scopes;
+
+    switch (provider) {
+        case GOOGLE:
+            clientId = System.getenv("GOOGLE_CLIENT_ID");
+            scopes = "openid email profile";
+            authorizationUrl = "https://accounts.google.com/o/oauth2/v2/auth" +
+                "?client_id=" + clientId +
+                "&redirect_uri=" + redirectUri +
+                "&response_type=code" +
+                "&scope=" + scopes.replace(" ", "%20") +
+                "&access_type=offline" +
+                "&state=" + java.util.UUID.randomUUID().toString();
+            break;
+        case GITHUB:
+            clientId = System.getenv("GITHUB_CLIENT_ID");
+            scopes = "read:user user:email";
+            authorizationUrl = "https://github.com/login/oauth/authorize" +
+                "?client_id=" + clientId +
+                "&redirect_uri=" + redirectUri +
+                "&scope=" + scopes.replace(" ", "%20") +
+                "&state=" + java.util.UUID.randomUUID().toString();
+            break;
+        default:
+            throw new IllegalArgumentException("Unsupported OAuth provider: " + provider);
+    }
+
+    // Redirect to the authorization URL by throwing a redirect response
+    throw new org.springframework.web.server.ResponseStatusException(
+        org.springframework.http.HttpStatus.FOUND,
+        "Redirecting to " + authorizationUrl);
+// generated end
     }
 
     /**
@@ -50,8 +84,46 @@ public class OAuthServiceImpl implements OAuthService {
     @Transactional
     public AuthResponse completeOAuthCallback(OAuthCallbackRequest request) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+    java.util.Optional<OAuthIdentityEntity> identityOpt = oAuthIdentityEntityRepository.findByProviderSubject(request.code());
+    UserEntity user;
+    if (identityOpt.isPresent()) {
+        user = userEntityRepository.findById(identityOpt.get().getUserId())
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "User not found"));
+    } else {
+        user = new UserEntity();
+        user.setEmail(request.code() + "@oauth.placeholder");
+        user.setPassword("");
+        user.setFirstName("");
+        user.setLastName("");
+        user.setEnabled(true);
+        user.setOauthUser(true);
+        user.setAccountNonExpired(true);
+        user.setAccountNonLocked(true);
+        user.setCredentialsNonExpired(true);
+        user = userEntityRepository.save(user);
+        OAuthIdentityEntity identity = new OAuthIdentityEntity();
+        identity.setUserId(user.getId());
+        identity.setProviderSubject(request.code());
+        identity.setEmail(user.getEmail());
+        oAuthIdentityEntityRepository.save(identity);
+        dev.moproco.icedlatte.domain.UserGrantedAuthority grantedAuthority = new dev.moproco.icedlatte.domain.UserGrantedAuthority();
+        grantedAuthority.setAuthority(dev.moproco.icedlatte.domain.Authority.USER);
+        grantedAuthority.setUser(user);
+        userGrantedAuthorityRepository.save(grantedAuthority);
+    }
+    String accessToken = java.util.UUID.randomUUID().toString();
+    String refreshToken = java.util.UUID.randomUUID().toString();
+    AuthSessionEntity session = new AuthSessionEntity();
+    session.setUserId(user.getId());
+    session.setRefreshTokenHash(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode(refreshToken));
+    session.setCreatedAt(java.time.LocalDateTime.now());
+    session.setExpiresAt(java.time.LocalDateTime.now().plusDays(30));
+    session.setLastUsedAt(java.time.LocalDateTime.now());
+    session.setCompromised(false);
+    authSessionEntityRepository.save(session);
+    return new AuthResponse(accessToken, refreshToken, user.getId());
+// generated end
     }
 
     /**
@@ -62,8 +134,46 @@ public class OAuthServiceImpl implements OAuthService {
     @Transactional
     public AuthResponse completeOAuthTokenHandoff(String token) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+    java.util.Optional<OAuthIdentityEntity> identityOpt = oAuthIdentityEntityRepository.findByProviderSubject(token);
+    UserEntity user;
+    if (identityOpt.isPresent()) {
+        user = userEntityRepository.findById(identityOpt.get().getUserId())
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "User not found"));
+    } else {
+        user = new UserEntity();
+        user.setEmail(token + "@oauth.placeholder");
+        user.setPassword("");
+        user.setFirstName("");
+        user.setLastName("");
+        user.setEnabled(true);
+        user.setOauthUser(true);
+        user.setAccountNonExpired(true);
+        user.setAccountNonLocked(true);
+        user.setCredentialsNonExpired(true);
+        user = userEntityRepository.save(user);
+        OAuthIdentityEntity identity = new OAuthIdentityEntity();
+        identity.setUserId(user.getId());
+        identity.setProviderSubject(token);
+        identity.setEmail(user.getEmail());
+        oAuthIdentityEntityRepository.save(identity);
+        dev.moproco.icedlatte.domain.UserGrantedAuthority grantedAuthority = new dev.moproco.icedlatte.domain.UserGrantedAuthority();
+        grantedAuthority.setAuthority(dev.moproco.icedlatte.domain.Authority.USER);
+        grantedAuthority.setUser(user);
+        userGrantedAuthorityRepository.save(grantedAuthority);
+    }
+    String accessToken = java.util.UUID.randomUUID().toString();
+    String refreshToken = java.util.UUID.randomUUID().toString();
+    AuthSessionEntity session = new AuthSessionEntity();
+    session.setUserId(user.getId());
+    session.setRefreshTokenHash(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode(refreshToken));
+    session.setCreatedAt(java.time.LocalDateTime.now());
+    session.setExpiresAt(java.time.LocalDateTime.now().plusDays(30));
+    session.setLastUsedAt(java.time.LocalDateTime.now());
+    session.setCompromised(false);
+    authSessionEntityRepository.save(session);
+    return new AuthResponse(accessToken, refreshToken, user.getId());
+// generated end
     }
 
 }

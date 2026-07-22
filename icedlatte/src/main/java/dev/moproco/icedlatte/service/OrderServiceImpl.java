@@ -19,6 +19,8 @@ import dev.moproco.icedlatte.repository.ShoppingCartItemRepository;
 import dev.moproco.icedlatte.dto.CheckoutOrderRequest;
 import dev.moproco.icedlatte.dto.OrderSnapshot;
 import dev.moproco.icedlatte.dto.OrderStatusHistorySnapshot;
+import dev.moproco.icedlatte.domain.OrderStatus;
+
 
 @Service
 public class OrderServiceImpl implements OrderService {
@@ -47,8 +49,19 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public List<OrderSnapshot> getOrders(Long userId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+List<Order> orders = orderRepository.findByUserId(userId);
+    return orders.stream()
+            .sorted((o1, o2) -> o2.getCreatedAt().compareTo(o1.getCreatedAt()))
+            .map(order -> new OrderSnapshot(
+                    order.getUserId(),
+                    order.getStatus(),
+                    order.getRecipientName(),
+                    order.getRecipientSurname(),
+                    order.getRecipientPhone(),
+                    order.getItemsQuantity(),
+                    order.getItemsTotalPrice()))
+            .collect(java.util.stream.Collectors.toList());
+// generated end
     }
 
     /**
@@ -59,8 +72,53 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public OrderSnapshot createOrder(Long userId, CheckoutOrderRequest request) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+ShoppingCart cart = shoppingCartRepository.findByUserId(userId).stream()
+        .filter(c -> c.getClosedAt() == null)
+        .findFirst()
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.NOT_FOUND, "Active shopping cart not found for user"));
+
+    List<ShoppingCartItem> cartItems = cart.getItems();
+
+    Order order = new Order();
+    order.setUserId(userId);
+    order.setStatus(OrderStatus.CREATED);
+    order.setRecipientName(request.recipientName());
+    order.setRecipientSurname(request.recipientSurname());
+    order.setRecipientPhone(request.recipientPhone());
+
+    int itemsQuantity = cartItems.stream().mapToInt(ShoppingCartItem::getProductQuantity).sum();
+    double itemsTotalPrice = 0.0;
+    order.setItemsQuantity(itemsQuantity);
+    order.setItemsTotalPrice(itemsTotalPrice);
+
+    order = orderRepository.save(order);
+
+    OrderAddress address = new OrderAddress();
+    address.setCountry(request.address().country());
+    address.setCity(request.address().city());
+    address.setLine(request.address().line());
+    address.setPostcode(request.address().postcode());
+    address.setOrder(order);
+    address = orderAddressRepository.save(address);
+    order.setAddress(address);
+
+    for (ShoppingCartItem cartItem : cartItems) {
+        OrderItem orderItem = new OrderItem();
+        orderItem.setOrderId(order.getId());
+        orderItem.setProductId(cartItem.getProductId());
+        orderItem.setProductsQuantity(cartItem.getProductQuantity());
+        orderItem.setOrder(order);
+        orderItemRepository.save(orderItem);
+    }
+
+    cart.setClosedAt(java.time.LocalDateTime.now());
+    shoppingCartRepository.save(cart);
+
+    return new OrderSnapshot(order.getUserId(), order.getStatus(), order.getRecipientName(),
+            order.getRecipientSurname(), order.getRecipientPhone(), order.getItemsQuantity(),
+            order.getItemsTotalPrice());
+// generated end
     }
 
     /**
@@ -71,8 +129,13 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public OrderSnapshot getOrderById(Long orderId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+Order order = orderRepository.findById(orderId)
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.NOT_FOUND, "Order not found"));
+    return new OrderSnapshot(order.getUserId(), order.getStatus(), order.getRecipientName(),
+            order.getRecipientSurname(), order.getRecipientPhone(), order.getItemsQuantity(),
+            order.getItemsTotalPrice());
+// generated end
     }
 
     /**
@@ -83,8 +146,23 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public void cancelOrder(Long orderId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+Order order = orderRepository.findById(orderId)
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.NOT_FOUND, "Order not found"));
+    OrderStatus previousStatus = order.getStatus();
+    if (previousStatus != OrderStatus.PENDING_PAYMENT && previousStatus != OrderStatus.PAID) {
+        throw new IllegalArgumentException("Order can only be cancelled if status is PENDING_PAYMENT or PAID");
+    }
+    order.setStatus(OrderStatus.CANCELLED);
+    orderRepository.save(order);
+    OrderStatusHistory history = new OrderStatusHistory();
+    history.setOrderId(orderId);
+    history.setOldStatus(previousStatus);
+    history.setNewStatus(OrderStatus.CANCELLED);
+    history.setChangedBy("system");
+    history.setChangedAt(java.time.LocalDateTime.now());
+    orderStatusHistoryRepository.save(history);
+// generated end
     }
 
     /**
@@ -95,8 +173,21 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public void requestRefund(Long orderId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.NOT_FOUND, "Order not found"));
+    if (order.getStatus() != OrderStatus.DELIVERED) {
+        throw new IllegalArgumentException("Refund can only be requested if status is DELIVERED");
+    }
+    order.setStatus(OrderStatus.REFUND_REQUESTED);
+    orderRepository.save(order);
+    OrderStatusHistory history = new OrderStatusHistory();
+    history.setOrderId(orderId);
+    history.setOldStatus(OrderStatus.DELIVERED);
+    history.setNewStatus(OrderStatus.REFUND_REQUESTED);
+    history.setChangedAt(java.time.LocalDateTime.now());
+    orderStatusHistoryRepository.save(history);
+// generated end
     }
 
     /**
@@ -107,8 +198,26 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public Long reorder(Long orderId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.NOT_FOUND, "Order not found"));
+
+    ShoppingCart cart = new ShoppingCart();
+    cart.setUserId(order.getUserId());
+    cart.setCreatedAt(java.time.LocalDateTime.now());
+    cart = shoppingCartRepository.save(cart);
+
+    List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+    for (OrderItem orderItem : orderItems) {
+        ShoppingCartItem cartItem = new ShoppingCartItem();
+        cartItem.setProductId(orderItem.getProductId());
+        cartItem.setProductQuantity(orderItem.getProductsQuantity());
+        cartItem.setCart(cart);
+        shoppingCartItemRepository.save(cartItem);
+    }
+
+    return cart.getId();
+// generated end
     }
 
     /**
@@ -119,8 +228,17 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public List<OrderStatusHistorySnapshot> getOrderHistory(Long orderId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+List<OrderStatusHistory> historyList = orderStatusHistoryRepository.findByOrderId(orderId);
+    return historyList.stream()
+            .sorted((h1, h2) -> h1.getChangedAt().compareTo(h2.getChangedAt()))
+            .map(h -> new OrderStatusHistorySnapshot(
+                    h.getOldStatus(),
+                    h.getNewStatus(),
+                    h.getChangedBy(),
+                    h.getReason(),
+                    h.getChangedAt()))
+            .collect(java.util.stream.Collectors.toList());
+// generated end
     }
 
 }

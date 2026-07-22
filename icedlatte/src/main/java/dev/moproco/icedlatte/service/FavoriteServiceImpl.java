@@ -28,8 +28,17 @@ public class FavoriteServiceImpl implements FavoriteService {
     @Transactional
     public List<String> getListOfFavoriteProducts(Long userId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+// Find the favorite list for the user
+    java.util.List<FavoriteListEntity> favoriteList = favoriteListEntityRepository.findByUserId(userId);
+    if (favoriteList.isEmpty()) {
+        return java.util.Collections.emptyList();
+    }    
+    // Extract product IDs from items and convert to String
+    return favoriteList.stream()
+            .flatMap(list -> list.getItems().stream())
+            .map(item -> item.getProductId().toString())
+            .collect(java.util.stream.Collectors.toList());
+// generated end
     }
 
     /**
@@ -40,8 +49,40 @@ public class FavoriteServiceImpl implements FavoriteService {
     @Transactional
     public void addListOfFavoriteProducts(Long userId, List<Long> productIds) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+// Find or create the favorite list for the user
+    java.util.Optional<FavoriteListEntity> favoriteListOpt = favoriteListEntityRepository.findByUserId(userId).stream().findFirst();
+    FavoriteListEntity favoriteList;
+    if (favoriteListOpt.isEmpty()) {
+        favoriteList = new FavoriteListEntity();
+        favoriteList.setUserId(userId);
+        favoriteList.setUpdatedAt(java.time.LocalDateTime.now());
+        favoriteList.setItems(new java.util.ArrayList<>());
+        favoriteList = favoriteListEntityRepository.save(favoriteList);
+    } else {
+        favoriteList = favoriteListOpt.get();
+    }
+
+    // Get existing product IDs in the list
+    java.util.Set<Long> existingProductIds = favoriteList.getItems().stream()
+            .map(FavoriteItemEntity::getProductId)
+            .collect(java.util.stream.Collectors.toSet());
+
+    // Create FavoriteItemEntity for each productId not already in the list
+    for (Long productId : productIds) {
+        if (!existingProductIds.contains(productId)) {
+            FavoriteItemEntity item = new FavoriteItemEntity();
+            item.setProductId(productId);
+            item.setVersion(1);
+            item.setFavoriteList(favoriteList);
+            favoriteItemEntityRepository.save(item);
+            favoriteList.getItems().add(item);
+        }
+    }
+
+    // Update updatedAt
+    favoriteList.setUpdatedAt(java.time.LocalDateTime.now());
+    favoriteListEntityRepository.save(favoriteList);
+// generated end
     }
 
     /**
@@ -52,8 +93,30 @@ public class FavoriteServiceImpl implements FavoriteService {
     @Transactional
     public void removeProductFromFavorite(Long userId, Long productId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+// Find the favorite list for the user
+    java.util.Optional<FavoriteListEntity> favoriteListOpt = favoriteListEntityRepository.findByUserId(userId).stream().findFirst();
+    if (favoriteListOpt.isEmpty()) {
+        throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Favorite list not found for user");
+    }
+    FavoriteListEntity favoriteList = favoriteListOpt.get();
+
+    // Find the FavoriteItemEntity to remove
+    java.util.Optional<FavoriteItemEntity> itemToRemove = favoriteList.getItems().stream()
+            .filter(item -> item.getProductId().equals(productId))
+            .findFirst();
+
+    if (itemToRemove.isEmpty()) {
+        throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Product not found in favorites");
+    }
+
+    // Remove from the list and delete from repository
+    favoriteList.getItems().remove(itemToRemove.get());
+    favoriteItemEntityRepository.delete(itemToRemove.get());
+
+    // Update updatedAt
+    favoriteList.setUpdatedAt(java.time.LocalDateTime.now());
+    favoriteListEntityRepository.save(favoriteList);
+// generated end
     }
 
 }

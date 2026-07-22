@@ -7,7 +7,9 @@ import dev.moproco.icedlatte.DeliveryAddressService;
 import dev.moproco.icedlatte.domain.Address;
 import dev.moproco.icedlatte.repository.AddressRepository;
 import dev.moproco.icedlatte.domain.DeliveryAddressEntity;
+import dev.moproco.icedlatte.domain.UserEntity;
 import dev.moproco.icedlatte.repository.DeliveryAddressEntityRepository;
+import dev.moproco.icedlatte.repository.UserEntityRepository;
 import dev.moproco.icedlatte.dto.DeliveryAddressRequest;
 import dev.moproco.icedlatte.dto.DeliveryAddressSnapshot;
 
@@ -16,10 +18,12 @@ public class DeliveryAddressServiceImpl implements DeliveryAddressService {
 
     private final AddressRepository addressRepository;
     private final DeliveryAddressEntityRepository deliveryAddressEntityRepository;
+    private final UserEntityRepository userEntityRepository;
 
-    public DeliveryAddressServiceImpl(AddressRepository addressRepository, DeliveryAddressEntityRepository deliveryAddressEntityRepository) {
+    public DeliveryAddressServiceImpl(AddressRepository addressRepository, DeliveryAddressEntityRepository deliveryAddressEntityRepository, UserEntityRepository userEntityRepository) {
         this.addressRepository = addressRepository;
         this.deliveryAddressEntityRepository = deliveryAddressEntityRepository;
+        this.userEntityRepository = userEntityRepository;
     }
 
     /**
@@ -30,8 +34,11 @@ public class DeliveryAddressServiceImpl implements DeliveryAddressService {
     @Transactional
     public List<DeliveryAddressSnapshot> getDeliveryAddresses(Long userId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+        UserEntity user = userEntityRepository.findById(userId).get();
+        return deliveryAddressEntityRepository.findByUser(user).stream()
+            .map(entity -> new DeliveryAddressSnapshot(entity.getLabel(), entity.getLine(), entity.getCity(), entity.getCountry(), entity.getPostcode(), entity.getIsDefault()))
+            .collect(java.util.stream.Collectors.toList());
+// generated end
     }
 
     /**
@@ -42,8 +49,24 @@ public class DeliveryAddressServiceImpl implements DeliveryAddressService {
     @Transactional
     public void addDeliveryAddress(Long userId, DeliveryAddressRequest request) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+if (request.isDefault() != null && request.isDefault()) {
+        List<DeliveryAddressEntity> existingDefaults = deliveryAddressEntityRepository.findByIsDefaultTrue();
+        for (DeliveryAddressEntity addr : existingDefaults) {
+            if (addr.getUser() != null && addr.getUser().getId().equals(userId)) {
+                addr.setIsDefault(false);
+                deliveryAddressEntityRepository.save(addr);
+            }
+        }
+    }
+    DeliveryAddressEntity entity = new DeliveryAddressEntity();
+    entity.setLabel(request.label());
+    entity.setLine(request.line());
+    entity.setCity(request.city());
+    entity.setCountry(request.country());
+    entity.setPostcode(request.postcode());
+    entity.setIsDefault(request.isDefault() != null && request.isDefault());
+    deliveryAddressEntityRepository.save(entity);
+// generated end
     }
 
     /**
@@ -54,8 +77,27 @@ public class DeliveryAddressServiceImpl implements DeliveryAddressService {
     @Transactional
     public void updateDeliveryAddress(Long addressId, DeliveryAddressRequest request) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+DeliveryAddressEntity entity = deliveryAddressEntityRepository.findById(addressId)
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Delivery address not found"));
+    entity.setLabel(request.label());
+    entity.setLine(request.line());
+    entity.setCity(request.city());
+    entity.setCountry(request.country());
+    entity.setPostcode(request.postcode());
+    if (request.isDefault() != null && request.isDefault()) {
+        List<DeliveryAddressEntity> existingDefaults = deliveryAddressEntityRepository.findByIsDefaultTrue();
+        for (DeliveryAddressEntity addr : existingDefaults) {
+            if (!addr.getId().equals(addressId) && addr.getUser() != null && addr.getUser().getId().equals(entity.getUser().getId())) {
+                addr.setIsDefault(false);
+                deliveryAddressEntityRepository.save(addr);
+            }
+        }
+        entity.setIsDefault(true);
+    } else {
+        entity.setIsDefault(request.isDefault() != null && request.isDefault());
+    }
+    deliveryAddressEntityRepository.save(entity);
+// generated end
     }
 
     /**
@@ -66,8 +108,22 @@ public class DeliveryAddressServiceImpl implements DeliveryAddressService {
     @Transactional
     public void deleteDeliveryAddress(Long addressId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+DeliveryAddressEntity entity = deliveryAddressEntityRepository.findById(addressId)
+            .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Delivery address not found"));
+    boolean wasDefault = entity.getIsDefault() != null && entity.getIsDefault();
+    deliveryAddressEntityRepository.delete(entity);
+    if (wasDefault) {
+        List<DeliveryAddressEntity> remaining = deliveryAddressEntityRepository.findByIsDefaultTrue();
+        if (remaining.isEmpty()) {
+            List<DeliveryAddressEntity> allForUser = deliveryAddressEntityRepository.findByIsDefaultFalse();
+            if (!allForUser.isEmpty()) {
+                DeliveryAddressEntity newDefault = allForUser.get(0);
+                newDefault.setIsDefault(true);
+                deliveryAddressEntityRepository.save(newDefault);
+            }
+        }
+    }
+// generated end
     }
 
     /**
@@ -78,8 +134,18 @@ public class DeliveryAddressServiceImpl implements DeliveryAddressService {
     @Transactional
     public void setDefaultDeliveryAddress(Long addressId) {
         // generated start
-        throw new UnsupportedOperationException("Not yet implemented");
-        // generated end
+DeliveryAddressEntity entity = deliveryAddressEntityRepository.findById(addressId)
+            .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Delivery address not found"));
+    List<DeliveryAddressEntity> allForUser = deliveryAddressEntityRepository.findByIsDefaultTrue();
+    for (DeliveryAddressEntity addr : allForUser) {
+        if (!addr.getId().equals(addressId) && addr.getUser() != null && addr.getUser().getId().equals(entity.getUser().getId())) {
+            addr.setIsDefault(false);
+            deliveryAddressEntityRepository.save(addr);
+        }
+    }
+    entity.setIsDefault(true);
+    deliveryAddressEntityRepository.save(entity);
+// generated end
     }
 
 }

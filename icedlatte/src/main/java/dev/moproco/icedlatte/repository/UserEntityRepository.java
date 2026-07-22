@@ -5,6 +5,7 @@ import dev.moproco.icedlatte.domain.UserEntity;
 import java.time.LocalDate;
 
 public interface UserEntityRepository extends JpaRepository<UserEntity, Long> {
+    java.util.Optional<UserEntity> findById(Long id);
     java.util.Optional<UserEntity> findByFirstName(String firstName);
     java.util.Optional<UserEntity> findByLastName(String lastName);
     java.util.Optional<UserEntity> findByBirthDate(LocalDate birthDate);
