@@ -1,6 +1,6 @@
 # Iced Latte — MoProCo Demo Project
 
-A production-grade Spring Boot coffee marketplace backend, generated entirely with the **MoProCo** model-driven toolchain. This project is a demonstrator equivalent to the publicly known [Iced Latte]([(https://github.com/Sunagatov/Iced-Latte)]) reference application.
+A production-grade Spring Boot coffee marketplace backend, generated entirely with the **MoProCo** model-driven toolchain. This project is a demonstrator equivalent to the publicly known [Iced Latte](https://github.com/Sunagatov/Iced-Latte) reference application.
 
 ---
 
