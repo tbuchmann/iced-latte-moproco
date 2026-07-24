@@ -21,6 +21,7 @@ import dev.moproco.icedlatte.dto.RegisterRequest;
 import dev.moproco.icedlatte.dto.ResetPasswordRequest;
 import dev.moproco.icedlatte.dto.RevokeSessionRequest;
 import dev.moproco.icedlatte.domain.Authority;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 
 @Service
@@ -31,13 +32,15 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final UserEntityRepository userEntityRepository;
     private final UserGrantedAuthorityRepository userGrantedAuthorityRepository;
     private final EmailTokenEntityRepository emailTokenEntityRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public AuthenticationServiceImpl(AuthSessionEntityRepository authSessionEntityRepository, LoginAttemptEntityRepository loginAttemptEntityRepository, UserEntityRepository userEntityRepository, UserGrantedAuthorityRepository userGrantedAuthorityRepository, EmailTokenEntityRepository emailTokenEntityRepository) {
+    public AuthenticationServiceImpl(AuthSessionEntityRepository authSessionEntityRepository, LoginAttemptEntityRepository loginAttemptEntityRepository, UserEntityRepository userEntityRepository, UserGrantedAuthorityRepository userGrantedAuthorityRepository, EmailTokenEntityRepository emailTokenEntityRepository, PasswordEncoder passwordEncoder) {
         this.authSessionEntityRepository = authSessionEntityRepository;
         this.loginAttemptEntityRepository = loginAttemptEntityRepository;
         this.userEntityRepository = userEntityRepository;
         this.userGrantedAuthorityRepository = userGrantedAuthorityRepository;
         this.emailTokenEntityRepository = emailTokenEntityRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     /**
@@ -50,7 +53,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         // generated start
 UserEntity user = new UserEntity();
     user.setEmail(request.email());
-    user.setPassword(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode(request.password()));
+    user.setPassword(passwordEncoder.encode(request.password()));
     user.setFirstName(request.firstName());
     user.setLastName(request.lastName());
     user.setEnabled(false);
@@ -67,7 +70,7 @@ UserEntity user = new UserEntity();
 
     String accessToken = java.util.UUID.randomUUID().toString();
     String refreshToken = java.util.UUID.randomUUID().toString();
-    String refreshTokenHash = new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode(refreshToken);
+    String refreshTokenHash = passwordEncoder.encode(refreshToken);
 
     AuthSessionEntity session = new AuthSessionEntity();
     session.setUserId(user.getId());
@@ -122,7 +125,7 @@ UserEntity user = userEntityRepository.findByEmail(request.email())
     if (!user.getEnabled() || !user.getAccountNonLocked()) {
         throw new org.springframework.security.authentication.BadCredentialsException("Invalid credentials");
     }
-    if (!new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().matches(request.password(), user.getPassword())) {
+    if (!passwordEncoder.matches(request.password(), user.getPassword())) {
         throw new org.springframework.security.authentication.BadCredentialsException("Invalid credentials");
     }
     String accessToken = java.util.UUID.randomUUID().toString();
@@ -148,7 +151,7 @@ UserEntity user = userEntityRepository.findByEmail(request.email())
     @Transactional
     public AuthResponse refreshToken(String refreshToken) {
         // generated start
-String refreshTokenHash = new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode(refreshToken);
+    String refreshTokenHash = passwordEncoder.encode(refreshToken);
     AuthSessionEntity session = authSessionEntityRepository.findByRefreshTokenHash(refreshTokenHash)
         .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
             org.springframework.http.HttpStatus.NOT_FOUND, "Session not found"));
@@ -171,7 +174,7 @@ String refreshTokenHash = new org.springframework.security.crypto.bcrypt.BCryptP
     @Transactional
     public void logout(String refreshToken) {
         // generated start
-String refreshTokenHash = new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode(refreshToken);
+    String refreshTokenHash = passwordEncoder.encode(refreshToken);
     AuthSessionEntity session = authSessionEntityRepository.findByRefreshTokenHash(refreshTokenHash)
         .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
             org.springframework.http.HttpStatus.NOT_FOUND, "Session not found"));
@@ -281,7 +284,7 @@ EmailTokenEntity emailToken = emailTokenEntityRepository.findByToken(request.res
     UserEntity user = userEntityRepository.findById(emailToken.getUserId())
         .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
             org.springframework.http.HttpStatus.NOT_FOUND, "User not found"));
-    user.setPassword(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode(request.newPassword()));
+    user.setPassword(passwordEncoder.encode(request.newPassword()));
     userEntityRepository.save(user);
     emailToken.setUsedAt(java.time.LocalDateTime.now());
     emailTokenEntityRepository.save(emailToken);
